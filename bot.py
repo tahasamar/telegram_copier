@@ -2,6 +2,8 @@ from pyrogram import Client,filters
 from pyrogram.types import Message,InputMediaPhoto,InputMediaVideo,InputMediaAnimation,InputMediaAudio,InputMediaDocument
 import pickle
 import os
+from filelock import FileLock
+import time
 
 #put your api id and api hash here . find them here : my.telegram.org
 api_id=00
@@ -79,7 +81,7 @@ async def edit(bot :Client,msg:Message):
             
 
 @app.on_message(filters.channel)
-def all(bot : Client,msg : Message):
+async def all(bot : Client,msg : Message):
     # get the chans pickle file and load it as dict search for chat.id in the keys 
     # if found then send the message to the channel
     with open("chans.pkl","rb") as f:
@@ -95,6 +97,9 @@ def all(bot : Client,msg : Message):
     if not os.path.exists("msg-"+str(msg.chat.id)+".pkl"):
         with open("msg-"+str(msg.chat.id)+".pkl","wb") as f:
             pickle.dump({"":""},f)
+    if not os.path.exists(f"msg-{msg.chat.id}.lock"):
+        with open(f"msg-{msg.chat.id}.lock","a+") as f:
+            f.write("0")
     with open(f"msg-{msg.chat.id}.pkl","rb") as f:
         msgs=pickle.load(f)
     print(msgs)
@@ -103,60 +108,75 @@ def all(bot : Client,msg : Message):
     else:
         reply=None  
     print(reply)
+    
 
+    while True:
+        with open(f"msg-{msg.chat.id}.lock","r") as f:
+            if f.read()=="0":
+                break
+            else:
+                time.sleep(0.3)
+            
+    
+    with open(f"msg-{msg.chat.id}.lock","w") as f:
+        f.write("1")
+        
     if msg.chat.has_protected_content:
         b=None
         if msg.text:    
-            sent=bot.copy_message(chans[str(msg.chat.id)],msg.chat.id,msg.id,reply_to_message_id=reply)
+            sent=await bot.copy_message(chans[str(msg.chat.id)],msg.chat.id,msg.id,reply_to_message_id=reply)
         elif msg.photo:
-            b=bot.download_media(msg.photo)
-            sent=bot.send_photo(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
+            b=await bot.download_media(msg.photo)
+            sent=await bot.send_photo(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
             # print("media")
         elif msg.video:
-            b=bot.download_media(msg.video)
-            sent=bot.send_video(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
+            b=await bot.download_media(msg.video)
+            sent=await bot.send_video(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
             # print("video")
         elif msg.audio:
-            b=bot.download_media(msg.audio)
-            sent=bot.send_audio(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
+            b=await bot.download_media(msg.audio)
+            sent=await bot.send_audio(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
             # print("audio")
         elif msg.voice:
-            b=bot.download_media(msg.voice)
-            sent=bot.send_voice(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
+            b=await bot.download_media(msg.voice)
+            sent=await bot.send_voice(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
             # print("voice")
         elif msg.document:
-            b=bot.download_media(msg.document)
-            sent=bot.send_document(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
+            b=await bot.download_media(msg.document)
+            sent=await bot.send_document(chans[str(msg.chat.id)],b,caption=msg.caption,caption_entities=msg.caption_entities , reply_to_message_id=reply)
             # print("document")
         elif msg.sticker:
-            b=bot.download_media(msg.sticker)
+            b=await bot.download_media(msg.sticker)
             # print("sticker")
-            sent=bot.send_sticker(chans[str(msg.chat.id)],b , reply_to_message_id=reply)
+            sent=await bot.send_sticker(chans[str(msg.chat.id)],b , reply_to_message_id=reply)
         elif msg.animation:
-            b=bot.download_media(msg.animation)
-            sent=bot.send_animation(chans[str(msg.chat.id)],b , reply_to_message_id=reply)
+            b=await bot.download_media(msg.animation)
+            sent=await bot.send_animation(chans[str(msg.chat.id)],b , reply_to_message_id=reply)
             # print("animation")
         elif msg.video_note:
-            b=bot.download_media(msg.video_note)
-            sent=bot.send_video_note(chans[str(msg.chat.id)],b , reply_to_message_id=reply)
+            b=await bot.download_media(msg.video_note)
+            sent=await bot.send_video_note(chans[str(msg.chat.id)],b , reply_to_message_id=reply)
             # print("video_note")
         elif msg.contact:
-            sent=bot.send_contact(chans[str(msg.chat.id)],msg.contact.phone_number,msg.contact.first_name,msg.contact.last_name,msg.contact.user_id,msg.contact.vcard , reply_to_message_id=reply)
+            sent=await bot.send_contact(chans[str(msg.chat.id)],msg.contact.phone_number,msg.contact.first_name,msg.contact.last_name,msg.contact.user_id,msg.contact.vcard , reply_to_message_id=reply)
             # print("contact")
         elif msg.location:
-            sent=bot.send_location(chans[str(msg.chat.id)],msg.location.latitude,msg.location.longitude , reply_to_message_id=reply)
+            sent=await bot.send_location(chans[str(msg.chat.id)],msg.location.latitude,msg.location.longitude , reply_to_message_id=reply)
             # print("location")
         elif msg.venue:
-            sent=bot.send_venue(chans[str(msg.chat.id)],msg.venue.location.latitude,msg.venue.location.longitude,msg.venue.title,msg.venue.address , reply_to_message_id=reply)
+            sent=await bot.send_venue(chans[str(msg.chat.id)],msg.venue.location.latitude,msg.venue.location.longitude,msg.venue.title,msg.venue.address , reply_to_message_id=reply)
             # print("venue")
         elif msg.game:
-            sent=bot.send_game(chans[str(msg.chat.id)],msg.game.title,msg.game.description,msg.game.animation , reply_to_message_id=reply)
+            sent=await bot.send_game(chans[str(msg.chat.id)],msg.game.title,msg.game.description,msg.game.animation , reply_to_message_id=reply)
             # print("game")
         if b:
             os.remove(b)
     else:
-        sent=bot.copy_message(chans[str(msg.chat.id)],msg.chat.id,msg.id,reply_to_message_id=reply)
-        
+        sent=await bot.copy_message(chans[str(msg.chat.id)],msg.chat.id,msg.id,reply_to_message_id=reply)
+    
+    with open(f"msg-{msg.chat.id}.lock","w") as f:
+        f.write("0")
+
     # open the file and save the sent message id in for the msg.id
     with open(f"msg-{msg.chat.id}.pkl","wb") as f:
         msgs[(msg.id)]=sent.id
