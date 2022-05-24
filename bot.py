@@ -97,9 +97,6 @@ async def all(bot : Client,msg : Message):
     if not os.path.exists("msg-"+str(msg.chat.id)+".pkl"):
         with open("msg-"+str(msg.chat.id)+".pkl","wb") as f:
             pickle.dump({"":""},f)
-    if not os.path.exists(f"msg-{msg.chat.id}.lock"):
-        with open(f"msg-{msg.chat.id}.lock","a+") as f:
-            f.write("0")
     with open(f"msg-{msg.chat.id}.pkl","rb") as f:
         msgs=pickle.load(f)
     print(msgs)
@@ -109,17 +106,6 @@ async def all(bot : Client,msg : Message):
         reply=None  
     print(reply)
     
-
-    while True:
-        with open(f"msg-{msg.chat.id}.lock","r") as f:
-            if f.read()=="0":
-                break
-            else:
-                time.sleep(0.3)
-            
-    
-    with open(f"msg-{msg.chat.id}.lock","w") as f:
-        f.write("1")
         
     if msg.chat.has_protected_content:
         b=None
@@ -174,9 +160,6 @@ async def all(bot : Client,msg : Message):
     else:
         sent=await bot.copy_message(chans[str(msg.chat.id)],msg.chat.id,msg.id,reply_to_message_id=reply)
     
-    with open(f"msg-{msg.chat.id}.lock","w") as f:
-        f.write("0")
-
     # open the file and save the sent message id in for the msg.id
     with open(f"msg-{msg.chat.id}.pkl","wb") as f:
         msgs[(msg.id)]=sent.id
